@@ -1576,7 +1576,7 @@ GrafanaMetricData.prototype = {
 		if (sysparam_query != "")
 			changeGr.addEncodedQuery(sysparam_query);
 		if (startTime && endTime) {
-			changeGr.addEncodedQuery('sys_created_onBETWEEN' + start + '@' + end);
+			changeGr.addEncodedQuery('sys_updated_onBETWEEN' + start + '@' + end);
 		}
 		changeGr.setLimit(limit);
 		changeGr.chooseWindow(pageWindow[0], pageWindow[1]);
@@ -1636,7 +1636,7 @@ GrafanaMetricData.prototype = {
 		if (ciId != "")
 			alertGr.addQuery("cmdb_ci.sys_id", ciId);
 		if (startTime && endTime) {
-			alertGr.addEncodedQuery('sys_created_onBETWEEN' + start + '@' + end);
+			alertGr.addEncodedQuery('sys_updated_onBETWEEN' + start + '@' + end);
 		}
 		alertGr.setLimit(limit);
 		alertGr.chooseWindow(pageWindow[0], pageWindow[1]);
@@ -1675,6 +1675,7 @@ GrafanaMetricData.prototype = {
 			alert.last_event_time = this.convertSysCreatedStrToMS(alertGr.getValue("last_event_time"));
 			alert.sys_id=alertGr.getValue("sys_id");
 			alert.additional_info=alertGr.getValue("additional_info");
+			alert.type = alertGr.getDisplayValue('type');
 			alert.uiAction = "UI Actions";
 			alert.annotationText = '<p>' + alert.Description + '<p/><a href="/d/tI7kwUKnz?var-ci=' + alert.CISysID + '" rel="noopener noreferrer" target="_blank">' + alert.CI + ' CI Details<a/>';
 			
@@ -1774,13 +1775,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>113</sys_mod_count>
+        <sys_mod_count>114</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-11-15 17:54:17</sys_updated_on>
+        <sys_updated_on>2021-11-17 14:22:22</sys_updated_on>
     </sys_script_include>
 </record_update>
