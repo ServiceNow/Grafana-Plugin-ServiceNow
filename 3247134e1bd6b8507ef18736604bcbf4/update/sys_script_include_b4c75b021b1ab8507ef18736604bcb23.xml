@@ -1709,6 +1709,7 @@ GrafanaMetricData.prototype = {
 			alert.start_time = this.convertSysCreatedStrToMS(alertGr.getValue("sys_created_on"));
 			
 			alert.secondary_alerts = 0;
+			alert.secondary_distinct_sources = 0;
 			if (alert.Group != "Secondary" && alert.Group != "") {
 				alert.drilldownSysID = alert.sys_id;
 				var secondaryGr = new GlideAggregate("em_alert");
@@ -1718,6 +1719,15 @@ GrafanaMetricData.prototype = {
 				secondaryGr.query();
 				if (secondaryGr.next()) {
 					alert.secondary_alerts = parseInt(secondaryGr.getAggregate("COUNT", "sys_id"));
+				}
+				
+				var distinctSourceGr = new GlideAggregate("em_alert");
+				distinctSourceGr.addQuery("parent", alert.sys_id);
+				distinctSourceGr.addAggregate("COUNT", "sys_id");
+				distinctSourceGr.groupBy("source");
+				distinctSourceGr.query();
+				while (distinctSourceGr.next()) {
+					alert.secondary_distinct_sources += 1;
 				}
 			} else {
 				alert.drilldownSysID = alertGr.getValue("parent");
@@ -1863,13 +1873,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>133</sys_mod_count>
+        <sys_mod_count>134</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-11-22 16:42:47</sys_updated_on>
+        <sys_updated_on>2021-11-22 17:19:59</sys_updated_on>
     </sys_script_include>
 </record_update>
