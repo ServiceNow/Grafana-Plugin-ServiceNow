@@ -491,12 +491,12 @@ GrafanaMetricData.prototype = {
 					obj["subscriptions"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("subscriptions")) + 1, obj[field].indexOf("/", obj[field].indexOf("subscriptions") + 14));
 					obj["resourceGroups"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("resourceGroups")) + 1, obj[field].indexOf("/", obj[field].indexOf("resourceGroups") + 15));
 				}
-				if (field == "additional_info") {
+				/*if (field == "additional_info") {
 					var additional_info = JSON.parse(obj[field]);
 					for (var key in additional_info) {
 						obj[key] = additional_info[key];
 					}
-				}
+				}*/
 			});
 			if (getAlertCount) {
 				obj.alertCount = 0;
@@ -760,7 +760,7 @@ GrafanaMetricData.prototype = {
 			return e;
 		}
 	},
-	getAlerts: function(ciId, alertType, alertState, sysparam, limit, page, sortBy, startTime, endTime) {
+	getAlerts: function(ciId, alertType, alertState, sysparam, limit, page, sortBy, startTime, endTime, tagFilters) {
 		var dataStr="";
 		var alertStateFilter="Open,Reopen";
 		if (alertState == "All")
@@ -775,9 +775,13 @@ GrafanaMetricData.prototype = {
 			cis = this.getValuesByNameMatch(ciId, "|");
 		else if (alertType=="none")
 			cis=[""];
+		var tagSysparam = "";
+		if (tagFilters != "") {
+			tagSysparam = this.createTagSysparam(tagFilters, 'additional_info');
+		}
 		
 		for(var i=0;i<cis.length;i++) {
-			var alertsbyCI=this.getAlertsByCI(cis[i],alertStateFilter,sysparam_query, limit, page, sortBy, startTime, endTime);
+			var alertsbyCI=this.getAlertsByCI(cis[i],alertStateFilter,sysparam_query, limit, page, sortBy, startTime, endTime, tagSysparam);
 			if (alertsbyCI.length > 0)
 				dataStr += alertsbyCI + ",";
 		}
@@ -1625,7 +1629,7 @@ GrafanaMetricData.prototype = {
 		gs.info(changeStr);
 		return changeStr;
 	},
-	getAlertsByCI: function (ciId, filter, query, limit, page, sortBy, startTime, endTime) {
+	getAlertsByCI: function (ciId, filter, query, limit, page, sortBy, startTime, endTime, tagSysparam) {
 		if (startTime && endTime) {
 			var start = new GlideDateTime();
 			start.subtract(start.getNumericValue());// gets the date to 0
@@ -1650,6 +1654,9 @@ GrafanaMetricData.prototype = {
 		}
 		if (sysparam_query) {
 			alertGr.addEncodedQuery(sysparam_query);
+		}
+		if (tagSysparam != "") {
+			alertGr.addEncodedQuery(tagSysparam);
 		}
 		//var dataItem={ title: "hello", name: "snoopy" };
 		//alertGr.addQuery('sys_created_on','>=',gs.daysAgo(7));
@@ -1866,20 +1873,35 @@ GrafanaMetricData.prototype = {
 		}
 		return stringify == true ? JSON.stringify(recordObj) : recordObj;
 	},
+	createTagSysparam: function (tagString, field) {
+		var returnString = "";
+		var tagArray = tagString.split(",");
+		for (var t = 0; t < tagArray.length; t++) {
+			var tag = tagArray[t].split("=");
+			var key = tag[0];
+			var value = tag[1];
+			var seperator = '^OR';
+			returnString += seperator + field + 'LIKE"' + key + '": "' + value + '"';
+		}
+		returnString = returnString.substring(3);
+		return returnString;
+	},
 
     type: 'GrafanaMetricData'
 };]]></script>
         <sys_class_name>sys_script_include</sys_class_name>
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
+        <sys_customer_update>false</sys_customer_update>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>134</sys_mod_count>
+        <sys_mod_count>144</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
+        <sys_replace_on_upgrade>false</sys_replace_on_upgrade>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
-        <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-11-22 17:19:59</sys_updated_on>
+        <sys_updated_by>karlis.peterson</sys_updated_by>
+        <sys_updated_on>2021-11-24 20:44:17</sys_updated_on>
     </sys_script_include>
 </record_update>
