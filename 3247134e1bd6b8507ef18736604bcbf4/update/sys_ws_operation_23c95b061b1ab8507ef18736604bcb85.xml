@@ -40,7 +40,6 @@
 	var queryParams = request.queryParams;
 	var endTimeInput=queryParams.endTime;
 	var startTimeInput=queryParams.startTime;
-	var timerangeColumn=queryParams.timerangeColumn;
 	
 	response.setContentType('application/json');
     response.setStatus(200);
@@ -57,7 +56,6 @@
 		sortBy, 
 		startTimeInput, 
 		endTimeInput,
-		timerangeColumn,
 		tagFilters
 	);
 	
@@ -76,14 +74,14 @@
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:53:01</sys_created_on>
         <sys_id>23c95b061b1ab8507ef18736604bcb85</sys_id>
-        <sys_mod_count>5</sys_mod_count>
+        <sys_mod_count>4</sys_mod_count>
         <sys_name>V1-Query-Alerts</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_ws_operation_23c95b061b1ab8507ef18736604bcb85</sys_update_name>
-        <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-12-27 18:03:10</sys_updated_on>
+        <sys_updated_by>karlis.peterson</sys_updated_by>
+        <sys_updated_on>2021-11-23 21:48:21</sys_updated_on>
         <web_service_definition display_value="Grafana API">018753021b1ab8507ef18736604bcbce</web_service_definition>
         <web_service_version/>
     </sys_ws_operation>
