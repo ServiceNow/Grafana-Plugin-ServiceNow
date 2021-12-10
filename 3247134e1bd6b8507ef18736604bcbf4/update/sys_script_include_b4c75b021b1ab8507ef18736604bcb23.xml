@@ -998,161 +998,6 @@ GrafanaMetricData.prototype = {
 		
 		return "["+cisSummary+"]";
 	},
-	getACCAgents: function (filter, metricNameMatch, startTimeInput, endTimeInput, sysParamQuery, filterTypeStr, limit, page) {
-		var agentFilter = "";
-		if (filter != "") {
-			if (filter.indexOf("(") != -1) filter = filter.substring(filter.indexOf("(") + 1, filter.indexOf(")"));
-			agentFilter = filter;
-		}
-		var sysparam="";
-		if (sysParamQuery != "") 
-			sysparam=sysParamQuery;
-		var filterType = "os";
-		if (filterTypeStr != "")
-			filterType = filterTypeStr;
-		var startTime = new GlideDateTime();
-		startTime.subtract(startTime.getNumericValue());// gets the date to 0
-		startTime.add(startTimeInput);
-		var endTime = new GlideDateTime();
-		endTime.subtract(endTime.getNumericValue());
-		endTime.add(endTimeInput);
-		var cmdbId ="";
-		var dataStr="";
-		var returnStr="";
-		//get ACC agents 
-		var filterArray = this.getValuesByNameMatch(agentFilter, "|");
-		var pageWindow = this.getPageWindow(limit, page);
-		var accAgentsCIs= new  GlideRecord("sn_agent_cmdb_ci_agent");
-		accAgentsCIs.addEncodedQuery(sysparam);
-		if (filterArray.length > 0) {
-			var extraQuery;
-			for(var i = 0; i < filterArray.length; i++) {
-				if (i == 0) {
-					if (filterType == "os") {
-						extraQuery = accAgentsCIs.addQuery('agent_extended_info.cmdb_ci.sys_class_name', filterArray[i]);
-					} else if (filterType == "ci") {
-						extraQuery = accAgentsCIs.addQuery('agent_extended_info.cmdb_ci.sys_id', filterArray[i]);
-					}
-				} else {
-					if (filterType == "os") {
-						extraQuery.addOrCondition('agent_extended_info.cmdb_ci.sys_class_name', "=", filterArray[i]);
-					} else if (filterType == "ci") {
-						extraQuery.addOrCondition('agent_extended_info.cmdb_ci.sys_id', "=", filterArray[i]);
-					}
-				}
-			}
-		}
-		accAgentsCIs.setLimit(limit);
-		accAgentsCIs.chooseWindow(pageWindow[0], pageWindow[1]);
-		accAgentsCIs.query();
-		while (accAgentsCIs.next())
-		{
-			var accObject = new Object();
-			accObject.name=accAgentsCIs.getValue("name");
-			if(accObject.name!=null)
-			{
-				accObject.agent_status=accAgentsCIs.agent_extended_info.status.getDisplayValue();
-				accObject.host=accAgentsCIs.agent_extended_info.cmdb_ci.getDisplayValue();
-				accObject.host_sys_id=accAgentsCIs.agent_extended_info.cmdb_ci.sys_id.toString();
-				accObject.ci_class=accAgentsCIs.agent_extended_info.cmdb_ci.sys_class_name.getDisplayValue();
-				accObject.ci_class_table=accAgentsCIs.agent_extended_info.cmdb_ci.sys_class_name.toString();
-				accObject.agent_sys_id=accAgentsCIs.getValue("sys_id");
-				accObject.num_of_running_checks=accAgentsCIs.agent_extended_info.running_checks_num.getDisplayValue();
-				accObject.data_collect=accAgentsCIs.agent_extended_info.data_collection.getDisplayValue();
-				accObject.version=accAgentsCIs.agent_extended_info.agent_version.getDisplayValue();
-				accObject.last_refreshed=accAgentsCIs.agent_extended_info.last_refreshed.getDisplayValue();
-				accObject.ip=accAgentsCIs.getDisplayValue("ip_address");
-				accObject.os=accAgentsCIs.agent_extended_info.cmdb_ci.os.getDisplayValue();
-				accObject.cpu_count=accAgentsCIs.agent_extended_info.cmdb_ci.cpu_count.getDisplayValue();
-				accObject.cpu_name=accAgentsCIs.agent_extended_info.cmdb_ci.cpu_name.getDisplayValue();
-				accObject.ram=accAgentsCIs.agent_extended_info.cmdb_ci.ram.getDisplayValue();
-				accObject.hardware_status=accAgentsCIs.agent_extended_info.cmdb_ci.hardware_status.getDisplayValue();
-				accObject.fqdn=accAgentsCIs.agent_extended_info.cmdb_ci.fqdn.getDisplayValue();
-				accObject.last_discovered=accAgentsCIs.agent_extended_info.cmdb_ci.last_discovered.getDisplayValue();
-				accObject.used_for=accAgentsCIs.agent_extended_info.cmdb_ci.used_for.getDisplayValue();
-				accObject.subcategory=accAgentsCIs.agent_extended_info.cmdb_ci.subcategory.getDisplayValue();
-				accObject.virtual=accAgentsCIs.agent_extended_info.cmdb_ci.virtual.getDisplayValue();
-
-				if (accObject.ci_class=="Linux Server")
-				{
-					accObject.image_url = "https://www.freeiconspng.com/uploads/linux-icon-2.png";
-				}
-				else if (accObject.ci_class=="Windows Server")
-				{
-					accObject.image_url = "https://www.freeiconspng.com/thumbs/windows-icon-png/cute-ball-windows-icon-png-16.png";
-				}
-
-				//This is a temporary solution to make these select agents appear as kubernetes
-				if (accObject.host.includes("sn-acc-ds-")) {
-					accObject.os = "Kubernetes DaemonSet";
-					accObject.image_url = "https://cdn2.iconfinder.com/data/icons/mixd/512/20_kubernetes-512.png";
-				} else if (accObject.host.includes("sn-acc-mid-")) {
-					accObject.os = "Containerized MID Server";
-					accObject.image_url = "https://cdn2.iconfinder.com/data/icons/mixd/512/20_kubernetes-512.png";
-				}
-
-				if (metricNameMatch!="") {
-					var metricNames = this.getValuesByNameMatch(metricNameMatch, "|");
-					for(var m=0;m<metricNames.length;m++)
-					{
-						var realMetricName = "";
-						switch (metricNames[m].toLowerCase())
-						{
-							case 'cpu':
-								if (accObject.ci_class=="Linux Server") {
-									realMetricName = "cpu_system_percentage";
-								} else if (accObject.ci_class=="Windows Server") {
-									realMetricName = "cpu_loadavgsec";
-								}
-								break;
-							case 'memory':
-								if (accObject.ci_class=="Linux Server") {
-									realMetricName = "memory_percent_available";
-								} else if (accObject.ci_class=="Windows Server") {
-									realMetricName = "ram_usage_percentage";
-								}
-								break;
-							case 'disk':
-								realMetricName = "disk_usage_used_percentage";
-								break;
-							default:
-								break;
-						}
-						var metricStr = "";
-						var returnMetricStr=this.getSingleMetricStr(accObject.host_sys_id, realMetricName, "", startTime, endTime, "");
-						if(returnMetricStr.length>0)
-						{
-							//Only grabs the first datapoint
-							gs.info(returnMetricStr);
-							var datapointsIndex = returnMetricStr.indexOf("datapoints");
-							if (datapointsIndex != -1) {
-								var firstDatapointIndex = returnMetricStr.indexOf("[", datapointsIndex);
-								if (firstDatapointIndex != -1) {
-									firstDatapointIndex += 2;
-									var endIndex = returnMetricStr.indexOf(",", firstDatapointIndex);
-									returnMetricStr = returnMetricStr.substring(firstDatapointIndex, endIndex);
-								} else {
-									returnMetricStr = "";
-								}
-							} else {
-								returnMetricStr = "";
-							}
-
-							gs.info(returnMetricStr);
-						}
-						accObject[metricNames[m]] = returnMetricStr;
-					}
-				}
-				var jsonString= JSON.stringify(accObject);
-				gs.info(jsonString);
-				dataStr+=jsonString;
-				dataStr+=",";
-			}
-		}
-		if(dataStr.charAt(dataStr.length - 1)==',')
-			dataStr=dataStr.substring(0, dataStr.length - 1);
-		return '['+dataStr+"]";
-	},
 	queryGeohashMap: function (table, regionColumn, sysparam) {
 		var aggArray = JSON.parse(this.getAggregate(table, sysparam, 'COUNT', 'vm_sys_id', regionColumn));
 		for(var i = 0; i < aggArray.length; i++) {
@@ -1892,16 +1737,14 @@ GrafanaMetricData.prototype = {
         <sys_class_name>sys_script_include</sys_class_name>
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
-        <sys_customer_update>false</sys_customer_update>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>144</sys_mod_count>
+        <sys_mod_count>145</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
-        <sys_replace_on_upgrade>false</sys_replace_on_upgrade>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
-        <sys_updated_by>karlis.peterson</sys_updated_by>
-        <sys_updated_on>2021-11-24 20:44:17</sys_updated_on>
+        <sys_updated_by>optimiz</sys_updated_by>
+        <sys_updated_on>2021-12-10 17:15:02</sys_updated_on>
     </sys_script_include>
 </record_update>
