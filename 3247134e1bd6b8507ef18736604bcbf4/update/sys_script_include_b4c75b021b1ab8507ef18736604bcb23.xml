@@ -383,8 +383,8 @@ GrafanaMetricData.prototype = {
 			return e;
 		}
 	},
-	getGenericTrend: function (table, sysparam, esSearch, trendColumn, trendBy, value, startTimeInput, endTimeInput) {
-		var result = [{datapoints: []}];
+	getGenericTrend: function (table, sysparam, esSearch, trendColumn, trendBy, value, startTimeInput, endTimeInput, groupBy) {
+		var result = [{}];
 		var totalCount = 0;
 		
 		var startTime = new GlideDateTime();
@@ -396,8 +396,11 @@ GrafanaMetricData.prototype = {
 		endTime.add(endTimeInput);
 		
 		if (table != "") {
-			result[0].datapoints.push([0, this.convertSysCreatedStrToMS(startTime)]);
+			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(startTime)]);
 			var trendAg = new GlideAggregate(table);
+			if (groupBy != "") {
+				trendAg.groupBy(groupBy);
+			}
 			trendAg.addTrend(trendColumn, trendBy, value);
 			trendAg.addEncodedQuery(trendColumn + "BETWEEN" + startTime + "@" + endTime);
 			trendAg.addEncodedQuery(sysparam);
@@ -409,9 +412,20 @@ GrafanaMetricData.prototype = {
 				var count = parseInt(trendAg.getAggregate("COUNT"));
 				var timeRef = this.convertSysCreatedStrToMS(trendAg.getValue("timeref"));
 				totalCount += count;
-				result[0].datapoints.push([count, timeRef]);
+				var key = table;
+				if (groupBy != "") {
+					var groupByColumn = trendAg.getDisplayValue(groupBy);
+					key = groupByColumn;
+				}
+				
+				if (result[0][key]) {
+					result[0][key].datapoints.push([count, timeRef]);
+				} else {
+					var entry = { datapoints: [[count, timeRef]] };
+					result[0][key] = entry;
+				}
 			}
-			result[0].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
+			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
 		}
 		return JSON.stringify(result);
 	},
@@ -1721,13 +1735,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>157</sys_mod_count>
+        <sys_mod_count>159</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-12-22 15:06:56</sys_updated_on>
+        <sys_updated_on>2021-12-23 14:56:14</sys_updated_on>
     </sys_script_include>
 </record_update>
