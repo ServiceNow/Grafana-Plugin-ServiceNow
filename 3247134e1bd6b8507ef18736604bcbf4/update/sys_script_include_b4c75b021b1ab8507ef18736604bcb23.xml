@@ -397,6 +397,7 @@ GrafanaMetricData.prototype = {
 		
 		if (table != "") {
 			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(startTime)]);
+			var key = table;
 			var trendAg = new GlideAggregate(table);
 			if (groupBy != "") {
 				trendAg.groupBy(groupBy);
@@ -412,7 +413,6 @@ GrafanaMetricData.prototype = {
 				var count = parseInt(trendAg.getAggregate("COUNT"));
 				var timeRef = this.convertSysCreatedStrToMS(trendAg.getValue("timeref"));
 				totalCount += count;
-				var key = table;
 				if (groupBy != "") {
 					var groupByColumn = trendAg.getDisplayValue(groupBy);
 					key = groupByColumn;
@@ -424,6 +424,11 @@ GrafanaMetricData.prototype = {
 					var entry = { datapoints: [[count, timeRef]] };
 					result[0][key] = entry;
 				}
+			}
+			var resultKeys = Object.keys(result[0]);
+			if (resultKeys.length == 0) {
+				result[0][key] = {datapoints: [[0, this.convertSysCreatedStrToMS(startTime)]]};
+				result[0][key].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
 			}
 			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
 		}
@@ -1735,13 +1740,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>159</sys_mod_count>
+        <sys_mod_count>161</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-12-23 14:56:14</sys_updated_on>
+        <sys_updated_on>2021-12-23 19:03:07</sys_updated_on>
     </sys_script_include>
 </record_update>
