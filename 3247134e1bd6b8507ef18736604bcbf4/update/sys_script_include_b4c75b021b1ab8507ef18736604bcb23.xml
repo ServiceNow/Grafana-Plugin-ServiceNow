@@ -525,6 +525,18 @@ GrafanaMetricData.prototype = {
 					obj[field] = tableGR.getDisplayValue(field);
 				}
 				
+				if (tableName == "sn_disco_certmgmt_certificate_task" && field == "certificate_expiration_date") {
+					var currentTime = new GlideDateTime();
+					var expirationTime = new GlideDateTime(obj[field]);
+					var difference = new GlideDuration();
+					difference = GlideDateTime.subtract(expirationTime, currentTime);
+					var prefix = "";
+					if (expirationTime < currentTime) {
+						prefix = "-";
+					}
+					obj["Relative Certificate Expiration"] = prefix + difference.getDisplayValue();
+				}
+				
 				if (field == "vm_object_id") {
 					obj["subscriptions"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("subscriptions")) + 1, obj[field].indexOf("/", obj[field].indexOf("subscriptions") + 14));
 					obj["resourceGroups"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("resourceGroups")) + 1, obj[field].indexOf("/", obj[field].indexOf("resourceGroups") + 15));
@@ -1505,8 +1517,6 @@ GrafanaMetricData.prototype = {
 		if (tagSysparam != "") {
 			alertGr.addEncodedQuery(tagSysparam);
 		}
-		//var dataItem={ title: "hello", name: "snoopy" };
-		//alertGr.addQuery('sys_created_on','>=',gs.daysAgo(7));
 		if (ciId != "")
 			alertGr.addQuery("cmdb_ci.sys_id", ciId);
 		if (startTime && endTime) {
@@ -1740,13 +1750,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>161</sys_mod_count>
+        <sys_mod_count>164</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-12-23 19:03:07</sys_updated_on>
+        <sys_updated_on>2021-12-27 15:50:08</sys_updated_on>
     </sys_script_include>
 </record_update>
