@@ -37,7 +37,7 @@ GrafanaMetricData.prototype = {
 		}
 		return JSON.stringify(returnActions);
 	},
-	getAlertAnomaly: function (columns, sysparam_query, sortBy, limit, page) {
+	getAlertAnomaly: function (columns, sysparam_query, sortBy, sortDirection, limit, page) {
 		var anomalyValues = [];
 		var fields = [];
 		if (columns.indexOf("|") != -1) {
@@ -53,7 +53,13 @@ GrafanaMetricData.prototype = {
 		anomalyGR.addEncodedQuery(sysparam_query);
 		anomalyGR.setLimit(limit);
 		anomalyGR.chooseWindow(pageWindow[0], pageWindow[1]);
-		anomalyGR.orderBy(sortBy);
+		if (sortBy != "") {
+			if (sortDirection == "ASC") {
+				anomalyGR.orderBy(sortBy);
+			} else {
+				anomalyGR.orderByDesc(sortBy);
+			}
+		}
 		anomalyGR.query();
 		while (anomalyGR.next()) {
 			var obj = {};
@@ -90,6 +96,7 @@ GrafanaMetricData.prototype = {
 			column.value = columnGr.getDisplayValue("element");
 			var type = columnGr.getDisplayValue("internal_type");
 			if (type == "Reference") {
+				columnArray.push({ label: column.label, value: column.value });
 				column.options = [];
 				var referenceTable = columnGr.getValue("reference");
 				var nestedColumnGr = new GlideRecord("sys_dictionary");
@@ -376,8 +383,8 @@ GrafanaMetricData.prototype = {
 			return e;
 		}
 	},
-	getGenericTrend: function (table, sysparam, esSearch, trendColumn, trendBy, value, startTimeInput, endTimeInput) {
-		var result = [{datapoints: []}];
+	getGenericTrend: function (table, sysparam, esSearch, trendColumn, trendBy, value, startTimeInput, endTimeInput, groupBy) {
+		var result = [{}];
 		var totalCount = 0;
 		
 		var startTime = new GlideDateTime();
@@ -389,8 +396,12 @@ GrafanaMetricData.prototype = {
 		endTime.add(endTimeInput);
 		
 		if (table != "") {
-			result[0].datapoints.push([0, this.convertSysCreatedStrToMS(startTime)]);
+			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(startTime)]);
+			var key = table;
 			var trendAg = new GlideAggregate(table);
+			if (groupBy != "") {
+				trendAg.groupBy(groupBy);
+			}
 			trendAg.addTrend(trendColumn, trendBy, value);
 			trendAg.addEncodedQuery(trendColumn + "BETWEEN" + startTime + "@" + endTime);
 			trendAg.addEncodedQuery(sysparam);
@@ -402,13 +413,28 @@ GrafanaMetricData.prototype = {
 				var count = parseInt(trendAg.getAggregate("COUNT"));
 				var timeRef = this.convertSysCreatedStrToMS(trendAg.getValue("timeref"));
 				totalCount += count;
-				result[0].datapoints.push([count, timeRef]);
+				if (groupBy != "") {
+					var groupByColumn = trendAg.getDisplayValue(groupBy);
+					key = groupByColumn;
+				}
+				
+				if (result[0][key]) {
+					result[0][key].datapoints.push([count, timeRef]);
+				} else {
+					var entry = { datapoints: [[count, timeRef]] };
+					result[0][key] = entry;
+				}
 			}
-			result[0].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
+			var resultKeys = Object.keys(result[0]);
+			if (resultKeys.length == 0) {
+				result[0][key] = {datapoints: [[0, this.convertSysCreatedStrToMS(startTime)]]};
+				result[0][key].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
+			}
+			//result[0].datapoints.push([0, this.convertSysCreatedStrToMS(endTime)]);
 		}
 		return JSON.stringify(result);
 	},
-	queryLogData: function (sysparam, limit, page, sortBy, startTimeInput, endTimeInput, esSearch, compressLog) {
+	queryLogData: function (sysparam, limit, page, sortBy, sortDirection, startTimeInput, endTimeInput, esSearch, compressLog) {
 		var returnArray = [];
 		
 		var startTime = new GlideDateTime();
@@ -423,7 +449,13 @@ GrafanaMetricData.prototype = {
 		if (esSearch != "") logGr.addEncodedQuery("123LUCENE_QUERY321=" + this.encodeBase16(esSearch));
 		logGr.setLimit(limit);
 		logGr.chooseWindow(pageWindow[0], pageWindow[1]);
-		logGr.orderBy(sortBy);
+		if (sortBy != "") {
+			if (sortDirection == "ASC") {
+				logGr.orderBy(sortBy);
+			} else {
+				logGr.orderByDesc(sortBy);
+			}
+		}
 		logGr.query();
 		var rowCount = logGr.getRowCount();
 		while (logGr.next()) {
@@ -445,10 +477,23 @@ GrafanaMetricData.prototype = {
 		}
 		return JSON.stringify(returnArray);
 	},
-	getQueryRowCount: function (table, sysparam) {
+	getQueryRowCount: function (table, sysparam, startTimeInput, endTimeInput, timerangeColumn) {
+		if (startTimeInput && endTimeInput) {
+			var start = new GlideDateTime();
+			start.subtract(start.getNumericValue());// gets the date to 0
+			start.add(startTimeInput);
+
+			var end = new GlideDateTime();
+			end.subtract(end.getNumericValue());
+			end.add(endTimeInput);
+		}
+		
 		var returnArray = [];
 		var tableGR = new GlideAggregate(table);
 		tableGR.addEncodedQuery(sysparam);
+		if (startTimeInput && endTimeInput) {
+			tableGR.addEncodedQuery(timerangeColumn + 'BETWEEN' + start + '@' + end);
+		}
 		tableGR.addAggregate('COUNT');
 		tableGR.query();
 		tableGR.next();
@@ -457,7 +502,17 @@ GrafanaMetricData.prototype = {
 		returnArray.push(obj);
 		return JSON.stringify(returnArray);
 	},
-	queryTable: function (tableName, columns, sysparam, sortBy, limit, page, getAlertCount) {
+	queryTable: function (tableName, columns, sysparam, sortBy, sortDirection, limit, page, getAlertCount, startTimeInput, endTimeInput, timerangeColumn) {
+		if (startTimeInput && endTimeInput) {
+			var start = new GlideDateTime();
+			start.subtract(start.getNumericValue());// gets the date to 0
+			start.add(startTimeInput);
+
+			var end = new GlideDateTime();
+			end.subtract(end.getNumericValue());
+			end.add(endTimeInput);
+		}
+		
 		var returnArray = [];
 		var fields = [];
 		if (columns.indexOf("|") != -1) {
@@ -470,9 +525,18 @@ GrafanaMetricData.prototype = {
 		var pageWindow = this.getPageWindow(limit, page);
 		var tableGR = new GlideRecord(tableName);
 		tableGR.addEncodedQuery(sysparam);
+		if (startTimeInput && endTimeInput) {
+			tableGR.addEncodedQuery(timerangeColumn + 'BETWEEN' + start + '@' + end);
+		}
 		tableGR.setLimit(limit);
 		tableGR.chooseWindow(pageWindow[0], pageWindow[1]);
-		tableGR.orderBy(sortBy);
+		if (sortBy != "") {
+			if (sortDirection == "ASC") {
+				tableGR.orderBy(sortBy);
+			} else {
+				tableGR.orderByDesc(sortBy);
+			}
+		}
 		tableGR.query();
 		while (tableGR.next()) {
 			var obj = {};
@@ -485,6 +549,21 @@ GrafanaMetricData.prototype = {
 					obj[field + ":value"] = tableGR.getValue(field);
 				} else {
 					obj[field] = tableGR.getDisplayValue(field);
+				}
+				
+				if (tableName == "sn_disco_certmgmt_certificate_task" && field == "certificate_expiration_date") {
+					var currentTime = new GlideDateTime();
+					var expirationTime = new GlideDateTime(obj[field]);
+					var difference = new GlideDuration();
+					var prefix = "";
+					if (expirationTime < currentTime) {
+						difference = GlideDateTime.subtract(expirationTime, currentTime);
+						prefix = "-";
+					} else {
+						difference = GlideDateTime.subtract(currentTime, expirationTime);
+					}
+					obj["Relative Certificate Expiration"] = prefix + difference.getDisplayValue();
+					obj["Relative Certificate Expiration Days"] = prefix + parseInt(difference.getDisplayValue());
 				}
 				
 				if (field == "vm_object_id") {
@@ -509,10 +588,23 @@ GrafanaMetricData.prototype = {
 		
 		return JSON.stringify(returnArray);
 	},
-	getAggregate: function(table, sysparam, type, column, groupBy, limit) {
+	getAggregate: function(table, sysparam, type, column, groupBy, limit, startTimeInput, endTimeInput, timerangeColumn) {
+		if (startTimeInput && endTimeInput) {
+			var start = new GlideDateTime();
+			start.subtract(start.getNumericValue());// gets the date to 0
+			start.add(startTimeInput);
+
+			var end = new GlideDateTime();
+			end.subtract(end.getNumericValue());
+			end.add(endTimeInput);
+		}
+		
 		var returnArray = [];
 		var tableGA = new GlideAggregate(table);
 		tableGA.addEncodedQuery(sysparam);
+		if (startTimeInput && endTimeInput) {
+			tableGA.addEncodedQuery(timerangeColumn + 'BETWEEN' + start + '@' + end);
+		}
 		tableGA.addAggregate(type, column);
 		tableGA.orderByAggregate(type, column);
 		tableGA.groupBy(groupBy);
@@ -760,7 +852,7 @@ GrafanaMetricData.prototype = {
 			return e;
 		}
 	},
-	getAlerts: function(ciId, alertType, alertState, sysparam, limit, page, sortBy, startTime, endTime, tagFilters) {
+	getAlerts: function(ciId, alertType, alertState, sysparam, limit, page, sortBy, startTime, endTime, timerangeColumn, tagFilters) {
 		var dataStr="";
 		var alertStateFilter="Open,Reopen";
 		if (alertState == "All")
@@ -781,7 +873,7 @@ GrafanaMetricData.prototype = {
 		}
 		
 		for(var i=0;i<cis.length;i++) {
-			var alertsbyCI=this.getAlertsByCI(cis[i],alertStateFilter,sysparam_query, limit, page, sortBy, startTime, endTime, tagSysparam);
+			var alertsbyCI=this.getAlertsByCI(cis[i],alertStateFilter,sysparam_query, limit, page, sortBy, startTime, endTime, timerangeColumn, tagSysparam);
 			if (alertsbyCI.length > 0)
 				dataStr += alertsbyCI + ",";
 		}
@@ -790,7 +882,7 @@ GrafanaMetricData.prototype = {
 			dataStr=dataStr.substring(0, dataStr.length - 1);
 		return '['+dataStr+"]";
 	},
-	getChanges: function (ciId, alertType, sysparam, limit, page, startTime, endTime) {
+	getChanges: function (ciId, alertType, sysparam, limit, page, startTime, endTime, timerangeColumn) {
 		var dataStr = "";
 		var sysparam_query="";
 		if (sysparam != "")
@@ -804,7 +896,7 @@ GrafanaMetricData.prototype = {
 			cis=[""];
 		
 		for(var i=0;i<cis.length;i++) {
-			var changesByCI=this.getChangesByCI(cis[i], sysparam_query, limit, page, startTime, endTime);
+			var changesByCI=this.getChangesByCI(cis[i], sysparam_query, limit, page, startTime, endTime, timerangeColumn);
 			if (changesByCI.length > 0)
 				dataStr += changesByCI + ",";
 		}
@@ -987,174 +1079,8 @@ GrafanaMetricData.prototype = {
 
 		return '['+returnStr+"]";
 	},
-	getCISummary: function (ciIdMatch, sysparam) {
-		var cis = this.getValuesByNameMatch(ciIdMatch, "|");
-		var cisSummary="";
-		for (var i = 0; i < cis.length; i++) {
-			cisSummary += this.getCISummaryStr(cis[i], sysparam) + ",";
-		}
-		if (cisSummary.charAt(cisSummary.length - 1) == ",")
-			cisSummary = cisSummary.substring(0, cisSummary.length - 1);
-		
-		return "["+cisSummary+"]";
-	},
-	getACCAgents: function (filter, metricNameMatch, startTimeInput, endTimeInput, sysParamQuery, filterTypeStr, limit, page) {
-		var agentFilter = "";
-		if (filter != "") {
-			if (filter.indexOf("(") != -1) filter = filter.substring(filter.indexOf("(") + 1, filter.indexOf(")"));
-			agentFilter = filter;
-		}
-		var sysparam="";
-		if (sysParamQuery != "") 
-			sysparam=sysParamQuery;
-		var filterType = "os";
-		if (filterTypeStr != "")
-			filterType = filterTypeStr;
-		var startTime = new GlideDateTime();
-		startTime.subtract(startTime.getNumericValue());// gets the date to 0
-		startTime.add(startTimeInput);
-		var endTime = new GlideDateTime();
-		endTime.subtract(endTime.getNumericValue());
-		endTime.add(endTimeInput);
-		var cmdbId ="";
-		var dataStr="";
-		var returnStr="";
-		//get ACC agents 
-		var filterArray = this.getValuesByNameMatch(agentFilter, "|");
-		var pageWindow = this.getPageWindow(limit, page);
-		var accAgentsCIs= new  GlideRecord("sn_agent_cmdb_ci_agent");
-		accAgentsCIs.addEncodedQuery(sysparam);
-		if (filterArray.length > 0) {
-			var extraQuery;
-			for(var i = 0; i < filterArray.length; i++) {
-				if (i == 0) {
-					if (filterType == "os") {
-						extraQuery = accAgentsCIs.addQuery('agent_extended_info.cmdb_ci.sys_class_name', filterArray[i]);
-					} else if (filterType == "ci") {
-						extraQuery = accAgentsCIs.addQuery('agent_extended_info.cmdb_ci.sys_id', filterArray[i]);
-					}
-				} else {
-					if (filterType == "os") {
-						extraQuery.addOrCondition('agent_extended_info.cmdb_ci.sys_class_name', "=", filterArray[i]);
-					} else if (filterType == "ci") {
-						extraQuery.addOrCondition('agent_extended_info.cmdb_ci.sys_id', "=", filterArray[i]);
-					}
-				}
-			}
-		}
-		accAgentsCIs.setLimit(limit);
-		accAgentsCIs.chooseWindow(pageWindow[0], pageWindow[1]);
-		accAgentsCIs.query();
-		while (accAgentsCIs.next())
-		{
-			var accObject = new Object();
-			accObject.name=accAgentsCIs.getValue("name");
-			if(accObject.name!=null)
-			{
-				accObject.agent_status=accAgentsCIs.agent_extended_info.status.getDisplayValue();
-				accObject.host=accAgentsCIs.agent_extended_info.cmdb_ci.getDisplayValue();
-				accObject.host_sys_id=accAgentsCIs.agent_extended_info.cmdb_ci.sys_id.toString();
-				accObject.ci_class=accAgentsCIs.agent_extended_info.cmdb_ci.sys_class_name.getDisplayValue();
-				accObject.ci_class_table=accAgentsCIs.agent_extended_info.cmdb_ci.sys_class_name.toString();
-				accObject.agent_sys_id=accAgentsCIs.getValue("sys_id");
-				accObject.num_of_running_checks=accAgentsCIs.agent_extended_info.running_checks_num.getDisplayValue();
-				accObject.data_collect=accAgentsCIs.agent_extended_info.data_collection.getDisplayValue();
-				accObject.version=accAgentsCIs.agent_extended_info.agent_version.getDisplayValue();
-				accObject.last_refreshed=accAgentsCIs.agent_extended_info.last_refreshed.getDisplayValue();
-				accObject.ip=accAgentsCIs.getDisplayValue("ip_address");
-				accObject.os=accAgentsCIs.agent_extended_info.cmdb_ci.os.getDisplayValue();
-				accObject.cpu_count=accAgentsCIs.agent_extended_info.cmdb_ci.cpu_count.getDisplayValue();
-				accObject.cpu_name=accAgentsCIs.agent_extended_info.cmdb_ci.cpu_name.getDisplayValue();
-				accObject.ram=accAgentsCIs.agent_extended_info.cmdb_ci.ram.getDisplayValue();
-				accObject.hardware_status=accAgentsCIs.agent_extended_info.cmdb_ci.hardware_status.getDisplayValue();
-				accObject.fqdn=accAgentsCIs.agent_extended_info.cmdb_ci.fqdn.getDisplayValue();
-				accObject.last_discovered=accAgentsCIs.agent_extended_info.cmdb_ci.last_discovered.getDisplayValue();
-				accObject.used_for=accAgentsCIs.agent_extended_info.cmdb_ci.used_for.getDisplayValue();
-				accObject.subcategory=accAgentsCIs.agent_extended_info.cmdb_ci.subcategory.getDisplayValue();
-				accObject.virtual=accAgentsCIs.agent_extended_info.cmdb_ci.virtual.getDisplayValue();
-
-				if (accObject.ci_class=="Linux Server")
-				{
-					accObject.image_url = "https://www.freeiconspng.com/uploads/linux-icon-2.png";
-				}
-				else if (accObject.ci_class=="Windows Server")
-				{
-					accObject.image_url = "https://www.freeiconspng.com/thumbs/windows-icon-png/cute-ball-windows-icon-png-16.png";
-				}
-
-				//This is a temporary solution to make these select agents appear as kubernetes
-				if (accObject.host.includes("sn-acc-ds-")) {
-					accObject.os = "Kubernetes DaemonSet";
-					accObject.image_url = "https://cdn2.iconfinder.com/data/icons/mixd/512/20_kubernetes-512.png";
-				} else if (accObject.host.includes("sn-acc-mid-")) {
-					accObject.os = "Containerized MID Server";
-					accObject.image_url = "https://cdn2.iconfinder.com/data/icons/mixd/512/20_kubernetes-512.png";
-				}
-
-				if (metricNameMatch!="") {
-					var metricNames = this.getValuesByNameMatch(metricNameMatch, "|");
-					for(var m=0;m<metricNames.length;m++)
-					{
-						var realMetricName = "";
-						switch (metricNames[m].toLowerCase())
-						{
-							case 'cpu':
-								if (accObject.ci_class=="Linux Server") {
-									realMetricName = "cpu_system_percentage";
-								} else if (accObject.ci_class=="Windows Server") {
-									realMetricName = "cpu_loadavgsec";
-								}
-								break;
-							case 'memory':
-								if (accObject.ci_class=="Linux Server") {
-									realMetricName = "memory_percent_available";
-								} else if (accObject.ci_class=="Windows Server") {
-									realMetricName = "ram_usage_percentage";
-								}
-								break;
-							case 'disk':
-								realMetricName = "disk_usage_used_percentage";
-								break;
-							default:
-								break;
-						}
-						var metricStr = "";
-						var returnMetricStr=this.getSingleMetricStr(accObject.host_sys_id, realMetricName, "", startTime, endTime, "");
-						if(returnMetricStr.length>0)
-						{
-							//Only grabs the first datapoint
-							gs.info(returnMetricStr);
-							var datapointsIndex = returnMetricStr.indexOf("datapoints");
-							if (datapointsIndex != -1) {
-								var firstDatapointIndex = returnMetricStr.indexOf("[", datapointsIndex);
-								if (firstDatapointIndex != -1) {
-									firstDatapointIndex += 2;
-									var endIndex = returnMetricStr.indexOf(",", firstDatapointIndex);
-									returnMetricStr = returnMetricStr.substring(firstDatapointIndex, endIndex);
-								} else {
-									returnMetricStr = "";
-								}
-							} else {
-								returnMetricStr = "";
-							}
-
-							gs.info(returnMetricStr);
-						}
-						accObject[metricNames[m]] = returnMetricStr;
-					}
-				}
-				var jsonString= JSON.stringify(accObject);
-				gs.info(jsonString);
-				dataStr+=jsonString;
-				dataStr+=",";
-			}
-		}
-		if(dataStr.charAt(dataStr.length - 1)==',')
-			dataStr=dataStr.substring(0, dataStr.length - 1);
-		return '['+dataStr+"]";
-	},
 	queryGeohashMap: function (table, regionColumn, sysparam) {
-		var aggArray = JSON.parse(this.getAggregate(table, sysparam, 'COUNT', 'vm_sys_id', regionColumn));
+		var aggArray = JSON.parse(this.getAggregate(table, sysparam, 'COUNT', 'vm_sys_id', regionColumn, 9999));
 		for(var i = 0; i < aggArray.length; i++) {
 			aggArray[i].geohash = this.getGeohash(aggArray[i][regionColumn]);
 		}
@@ -1543,31 +1469,6 @@ GrafanaMetricData.prototype = {
 			}
 		}
 	},
-	getCISummaryStr: function (ciId, sysparam) {
-		var ciSummaryStr="";
-		var gr= new GlideRecord("cmdb_ci");
-		if (sysparam != "")
-			gr.addEncodedQuery(sysparam);
-		gr.addQuery("sys_id", ciId);
-		gr.query();
-		if(gr.next())
-		{
-			var ciSummary = new Object();
-			ciSummary.name=gr.getDisplayValue("name");
-			ciSummary.classType=gr.getDisplayValue("sys_class_name");
-			ciSummary.environment=gr.getDisplayValue("environment")|| " ";
-			ciSummary.maintenance_schedule=gr.getDisplayValue("maintenance_schedule")|| "NO";
-			ciSummary.support_group=gr.getDisplayValue("support_group")|| " ";
-			
-			var jsonString= JSON.stringify(ciSummary);
-			ciSummaryStr+=jsonString;
-			ciSummaryStr+=",";
-		}
-		if (ciSummaryStr.charAt(ciSummaryStr.length - 1) == ",")
-			ciSummaryStr=ciSummaryStr.substring(0, ciSummaryStr.length - 1);
-		
-		return(ciSummaryStr);
-	},
 	getAllCIsInService: function (serviceId) {
 		var cis = [];
         var childrenCIs= new  GlideRecord("em_impact_graph");
@@ -1583,7 +1484,7 @@ GrafanaMetricData.prototype = {
         }
         return cis;
 	},
-	getChangesByCI: function (ciId, sysparam_query, limit, page, startTime, endTime) {
+	getChangesByCI: function (ciId, sysparam_query, limit, page, startTime, endTime, timerangeColumn) {
 		if (startTime && endTime) {
 			var start = new GlideDateTime();
 			start.subtract(start.getNumericValue());// gets the date to 0
@@ -1600,7 +1501,7 @@ GrafanaMetricData.prototype = {
 		if (sysparam_query != "")
 			changeGr.addEncodedQuery(sysparam_query);
 		if (startTime && endTime) {
-			changeGr.addEncodedQuery('sys_updated_onBETWEEN' + start + '@' + end);
+			changeGr.addEncodedQuery(timerangeColumn + 'BETWEEN' + start + '@' + end);
 		}
 		changeGr.setLimit(limit);
 		changeGr.chooseWindow(pageWindow[0], pageWindow[1]);
@@ -1629,7 +1530,7 @@ GrafanaMetricData.prototype = {
 		gs.info(changeStr);
 		return changeStr;
 	},
-	getAlertsByCI: function (ciId, filter, query, limit, page, sortBy, startTime, endTime, tagSysparam) {
+	getAlertsByCI: function (ciId, filter, query, limit, page, sortBy, startTime, endTime, timerangeColumn, tagSysparam) {
 		if (startTime && endTime) {
 			var start = new GlideDateTime();
 			start.subtract(start.getNumericValue());// gets the date to 0
@@ -1658,12 +1559,10 @@ GrafanaMetricData.prototype = {
 		if (tagSysparam != "") {
 			alertGr.addEncodedQuery(tagSysparam);
 		}
-		//var dataItem={ title: "hello", name: "snoopy" };
-		//alertGr.addQuery('sys_created_on','>=',gs.daysAgo(7));
 		if (ciId != "")
 			alertGr.addQuery("cmdb_ci.sys_id", ciId);
 		if (startTime && endTime) {
-			alertGr.addEncodedQuery('sys_updated_onBETWEEN' + start + '@' + end);
+			alertGr.addEncodedQuery(timerangeColumn + 'BETWEEN' + start + '@' + end);
 		}
 		alertGr.setLimit(limit);
 		alertGr.chooseWindow(pageWindow[0], pageWindow[1]);
@@ -1893,13 +1792,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>144</sys_mod_count>
+        <sys_mod_count>173</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
-        <sys_updated_by>karlis.peterson</sys_updated_by>
-        <sys_updated_on>2021-11-24 20:44:17</sys_updated_on>
+        <sys_updated_by>optimiz</sys_updated_by>
+        <sys_updated_on>2021-12-27 19:43:05</sys_updated_on>
     </sys_script_include>
 </record_update>

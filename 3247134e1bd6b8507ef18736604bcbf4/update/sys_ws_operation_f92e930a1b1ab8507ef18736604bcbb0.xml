@@ -31,13 +31,14 @@
 	var queryParams = request.queryParams;
 	var endTimeInput=queryParams.endTime;
 	var startTimeInput=queryParams.startTime;
+	var timerangeColumn=queryParams.timerangeColumn;
 	
 	response.setContentType('application/json');
     response.setStatus(200);
 	var writer = response.getStreamWriter();
 	
 	var metricData = new global.GrafanaMetricData();
-    var metricValues=metricData.getChanges(ciId, alertType, sysparam, limit, page, startTimeInput, endTimeInput);
+    var metricValues=metricData.getChanges(ciId, alertType, sysparam, limit, page, startTimeInput, endTimeInput, timerangeColumn);
 	
 	writer.writeString(metricValues);
 })(request, response);]]></operation_script>
@@ -54,14 +55,14 @@
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 17:12:02</sys_created_on>
         <sys_id>f92e930a1b1ab8507ef18736604bcbb0</sys_id>
-        <sys_mod_count>2</sys_mod_count>
+        <sys_mod_count>3</sys_mod_count>
         <sys_name>V1-Query-Changes</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_ws_operation_f92e930a1b1ab8507ef18736604bcbb0</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2021-11-15 17:52:08</sys_updated_on>
+        <sys_updated_on>2021-12-27 18:31:06</sys_updated_on>
         <web_service_definition display_value="Grafana API">018753021b1ab8507ef18736604bcbce</web_service_definition>
         <web_service_version/>
     </sys_ws_operation>
