@@ -537,7 +537,6 @@ GrafanaMetricData.prototype = {
 				tableGR.orderByDesc(sortBy);
 			}
 		}
-		gs.log("fields: " + fields, "GrafanaMetricData");
 		tableGR.query();
 		while (tableGR.next()) {
 			var obj = {};
@@ -1425,10 +1424,12 @@ GrafanaMetricData.prototype = {
 		var jsonMessage = JSON.parse(raw_message);
 		var returnMessage = {};
 		returnMessage.message = jsonMessage.message;
-		returnMessage['sn-sourcetype'] = jsonMessage.fields['sn-sourcetype'];
-		returnMessage['sn-service'] = jsonMessage.fields['sn-service'];
-		returnMessage['sn-application'] = jsonMessage.fields['sn-application'];
-		returnMessage['sn-ciname'] = jsonMessage.fields['sn-ciname'];
+		if (jsonMessage.fields) {
+			returnMessage['sn-sourcetype'] = jsonMessage.fields['sn-sourcetype'];
+			returnMessage['sn-service'] = jsonMessage.fields['sn-service'];
+			returnMessage['sn-application'] = jsonMessage.fields['sn-application'];
+			returnMessage['sn-ciname'] = jsonMessage.fields['sn-ciname'];
+		}
 		returnMessage['agent-hostname'] = jsonMessage.agent.hostname;
 		return JSON.stringify(returnMessage);
 	},
@@ -1815,13 +1816,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>192</sys_mod_count>
+        <sys_mod_count>194</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2022-01-13 14:31:41</sys_updated_on>
+        <sys_updated_on>2022-01-13 15:03:47</sys_updated_on>
     </sys_script_include>
 </record_update>
