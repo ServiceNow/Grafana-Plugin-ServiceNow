@@ -537,10 +537,12 @@ GrafanaMetricData.prototype = {
 				tableGR.orderByDesc(sortBy);
 			}
 		}
+		gs.log("fields: " + fields, "GrafanaMetricData");
 		tableGR.query();
 		while (tableGR.next()) {
 			var obj = {};
-			fields.map(function(field) {
+			for (var i = 0; i < fields.length; i++) {
+				var field = fields[i];
 				if (field.includes(":d")) {
 					field = field.substring(0, field.length - 2);
 					obj[field + ":display"] = tableGR.getDisplayValue(field);
@@ -552,31 +554,22 @@ GrafanaMetricData.prototype = {
 				}
 				
 				if (tableName == "sn_disco_certmgmt_certificate_task" && field == "certificate_expiration_date") {
-					var currentTime = new GlideDateTime();
-					var expirationTime = new GlideDateTime(obj[field]);
-					var difference = new GlideDuration();
-					var prefix = "";
-					if (expirationTime < currentTime) {
-						difference = GlideDateTime.subtract(expirationTime, currentTime);
-						prefix = "-";
-					} else {
-						difference = GlideDateTime.subtract(currentTime, expirationTime);
-					}
-					obj["Relative Certificate Expiration"] = prefix + difference.getDisplayValue();
-					obj["Relative Certificate Expiration Days"] = prefix + parseInt(difference.getDisplayValue());
+					obj["Relative Certificate Expiration"] = this.createRelativeTimeString(tableGR.getValue("certificate_expiration_date"));
+					obj["Relative Certificate Expiration Days"] = parseInt(obj["Relative Certificate Expiration"]);
 				}
 				
 				if (field == "vm_object_id") {
 					obj["subscriptions"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("subscriptions")) + 1, obj[field].indexOf("/", obj[field].indexOf("subscriptions") + 14));
 					obj["resourceGroups"] = obj[field].substring(obj[field].indexOf("/", obj[field].indexOf("resourceGroups")) + 1, obj[field].indexOf("/", obj[field].indexOf("resourceGroups") + 15));
 				}
-				/*if (field == "additional_info") {
-					var additional_info = JSON.parse(obj[field]);
-					for (var key in additional_info) {
-						obj[key] = additional_info[key];
-					}
-				}*/
-			});
+				
+				if (field == "sys_created_on") {
+					obj["created_relative_time"] = this.createRelativeTimeString(tableGR.getValue("sys_created_on"));
+				}
+				if (field == "sys_updated_on") {
+					obj["updated_relative_time"] = this.createRelativeTimeString(tableGR.getValue("sys_updated_on"));
+				}
+			}
 			if (getAlertCount) {
 				obj.alertCount = 0;
 				var count = JSON.parse(this.getQueryRowCount('em_alert', 'cmdb_ci=' + tableGR.getValue('cmdb_ci')));
@@ -1573,29 +1566,8 @@ GrafanaMetricData.prototype = {
 		while (alertGr.next())
         {	
 			var alert = new Object();
-			var currentTime = new GlideDateTime();
-			var updatedTime = new GlideDateTime(alertGr.getValue("sys_updated_on"));
-			var updatedDifference = new GlideDuration();
-			var updatedPrefix = "";
-			if (updatedTime < currentTime) {
-				updatedDifference = GlideDateTime.subtract(updatedTime, currentTime);
-				updatedPrefix = "-";
-			} else {
-				updatedDifference = GlideDateTime.subtract(currentTime, updatedTime);
-			}
-			var createdTime = new GlideDateTime(alertGr.getValue("sys_created_on"));
-			var createdDifference = new GlideDuration();
-			var createdPrefix = "";
-			if (createdTime < currentTime) {
-				createdDifference = GlideDateTime.subtract(createdTime, currentTime);
-				createdPrefix = "-";
-			} else {
-				createdDifference = GlideDateTime.subtract(currentTime, createdTime);
-			}
-			//obj["Relative Certificate Expiration"] = prefix + difference.getDisplayValue();
-			//obj["Relative Certificate Expiration Days"] = prefix + parseInt(difference.getDisplayValue());
-			alert.updated_relative_time = updatedPrefix + updatedDifference.getDisplayValue();
-			alert.created_relative_time = createdPrefix + createdDifference.getDisplayValue();
+			alert.updated_relative_time = this.createRelativeTimeString(alertGr.getValue("sys_updated_on"));
+			alert.created_relative_time = this.createRelativeTimeString(alertGr.getValue("sys_created_on"));
 			alert.sys_created_on = this.convertSysCreatedStrToMS(alertGr.getValue("sys_created_on"));
 			
 			alert.AlertId=alertGr.getValue("number");
@@ -1808,6 +1780,34 @@ GrafanaMetricData.prototype = {
 		returnString = returnString.substring(3);
 		return returnString;
 	},
+	shortenRelativeTime: function (rel_time) {
+		rel_time = rel_time.replace("Days", "d");
+		rel_time = rel_time.replace("Day", "d");
+		rel_time = rel_time.replace("Hours", "hr");
+		rel_time = rel_time.replace("Hour", "hr");
+		rel_time = rel_time.replace("Minutes", "min");
+		rel_time = rel_time.replace("Minute", "min");
+		rel_time = rel_time.replace("Seconds", "sec");
+		rel_time = rel_time.replace("Second", "sec");
+		return rel_time;
+	},
+	createRelativeTimeString: function (time_value) {
+		var relative_time = "";
+		if (time_value) {
+			var currentTime = new GlideDateTime();
+			var dateTime = new GlideDateTime(time_value);
+			var difference = new GlideDuration();
+			var suffix = "";
+			if (dateTime < currentTime) {
+				difference = GlideDateTime.subtract(dateTime, currentTime);
+				suffix = " ago";
+			} else {
+				difference = GlideDateTime.subtract(currentTime, dateTime);
+			}
+			relative_time = this.shortenRelativeTime(difference.getDisplayValue() + suffix);
+		}
+		return relative_time;
+	},
 
     type: 'GrafanaMetricData'
 };]]></script>
@@ -1815,13 +1815,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>174</sys_mod_count>
+        <sys_mod_count>192</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2022-01-10 20:31:10</sys_updated_on>
+        <sys_updated_on>2022-01-13 14:31:41</sys_updated_on>
     </sys_script_include>
 </record_update>
