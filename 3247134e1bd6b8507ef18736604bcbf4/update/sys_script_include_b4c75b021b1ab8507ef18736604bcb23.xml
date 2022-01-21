@@ -928,9 +928,11 @@ GrafanaMetricData.prototype = {
 				var className = startGR.getDisplayValue("sys_class_name");
 				var classNameValue = startGR.getValue("sys_class_name");
 				var sys_id = startGR.getValue("sys_id");
-				var alertCount = this.getAlertsCountByCI(parentIds[0],"","Open,Reopen");
-				if (alertCount == 0) alertCount = -1;
-				var childRow = '["' + className + "||" + classNameValue + '",' + 0 + ',"' + "Starting Point||0" + '","' + name + "||" + sys_id + '",' + alertCount + ',' + -1 + '],';
+				var alertCount = 0;
+				var impact = 0;
+				impact = this.getImpactStatusOfCI(parentIds[0]);
+				alertCount = this.getAlertsCountByCI(parentIds[0],"","Open,Reopen");
+				var childRow = '["' + className + "||" + classNameValue + '",' + 0 + ',"' + "Starting Point||0" + '","' + name + "||" + sys_id + '",' + impact + ',' + alertCount + '],';
 				topologyRows += childRow;
 			}
 
@@ -958,11 +960,11 @@ GrafanaMetricData.prototype = {
 							parentObj.child_name = parentGR.child.name.toString();
 							parentObj.child_name = parentObj.child_name.replace(/\\/g, "/");
 							parentObj.child_id = parentGR.child.sys_id.toString();
-							
-							var alertCount = this.getAlertsCountByCI(parentObj.parent_id,"","Open,Reopen");
-							if (alertCount == 0) 
-								alertCount = -1;
-							var childRow = '["' + parentObj.parent_class + "||" + parentObj.parent_class_value + '",' + 0 + ',"' + parentObj.child_name + "||" + parentObj.child_id + '","' + parentObj.parent_name + "||" + parentObj.parent_id + '",' + alertCount + ',' + -1 + '],';
+							var alertCount = 0;
+							var impact = 0;
+							impact = this.getImpactStatusOfCI(parentObj.parent_id);
+							alertCount = this.getAlertsCountByCI(parentObj.parent_id,"","Open,Reopen");
+							var childRow = '["' + parentObj.parent_class + "||" + parentObj.parent_class_value + '",' + 0 + ',"' + parentObj.child_name + "||" + parentObj.child_id + '","' + parentObj.parent_name + "||" + parentObj.parent_id + '",' + impact + ',' + alertCount + '],';
 							topologyRows += childRow;
 							nextChildIds.push(parentObj.parent_id);
 						}
@@ -978,7 +980,11 @@ GrafanaMetricData.prototype = {
 							var childClass = cmdb_ci_gr.getDisplayValue("sys_class_name");
 							var childClassValue = cmdb_ci_gr.getValue("sys_class_name");
 							var childSysId = cmdb_ci_gr.getValue("sys_id");
-							var childRow = '["' + childClass + "||" + childClassValue + '",' + 0 + ',"' + childName + "||" + childSysId + '","' + childName + "||" + childSysId + '",' + 0 + ',' + -1 + '],';
+							var alertCount = 0;
+							var impact = 0;
+							impact = this.getImpactStatusOfCI(childSysId);
+							alertCount = this.getAlertsCountByCI(childSysId,"","Open,Reopen");
+							var childRow = '["' + childClass + "||" + childClassValue + '",' + 0 + ',"' + childName + "||" + childSysId + '","' + childName + "||" + childSysId + '",' + impact + ',' + alertCount + '],';
 							topologyRows += childRow;
 						}
 					}
@@ -1015,10 +1021,11 @@ GrafanaMetricData.prototype = {
 							childObj.child_name = childObj.child_name.replace(/\\/g, "/");
 							childObj.child_class = childGR.child.sys_class_name.getDisplayValue();
 							childObj.child_class_value = childGR.child.sys_class_name.toString();
-							
-							var alertCount = this.getAlertsCountByCI(childObj.child_id,"","Open,Reopen");
-							if (alertCount == 0) alertCount = -1;
-							var childRow = '["' + childObj.child_class + "||" + childObj.child_class_value + '",' + 0 + ',"' + childObj.parent_name + "||" + childObj.parent_id + '","' + childObj.child_name + "||" + childObj.child_id + '",' + alertCount + ',' + -1 + '],';
+							var alertCount = 0;
+							var impact = 0;
+							impact = this.getImpactStatusOfCI(childObj.child_id);
+							alertCount = this.getAlertsCountByCI(childObj.child_id,"","Open,Reopen");
+							var childRow = '["' + childObj.child_class + "||" + childObj.child_class_value + '",' + 0 + ',"' + childObj.parent_name + "||" + childObj.parent_id + '","' + childObj.child_name + "||" + childObj.child_id + '",' + impact + ',' + alertCount + '],';
 							topologyRows += childRow;
 							nextParentIds.push(childObj.child_id);
 						}
@@ -1034,7 +1041,11 @@ GrafanaMetricData.prototype = {
 							var parentClass = cmdbGR.getDisplayValue("sys_class_name");
 							var parentClassValue = cmdbGR.getValue("sys_class_name");
 							var parentSysId = cmdbGR.getValue("sys_id");
-							var childRow = '["' + parentClass + "||" + parentClassValue + '",' + 0 + ',"' + parentName + "||" + parentSysId + '","' + parentName + "||" + parentSysId + '",' + 0 + ',' + -1 + '],';
+							var alertCount = 0;
+							var impact = 0;
+							impact = this.getImpactStatusOfCI(parentSysId);
+							alertCount = this.getAlertsCountByCI(parentSysId,"","Open,Reopen");
+							var childRow = '["' + parentClass + "||" + parentClassValue + '",' + 0 + ',"' + parentName + "||" + parentSysId + '","' + parentName + "||" + parentSysId + '",' + impact + ',' + alertCount + '],';
 							topologyRows += childRow;
 						}
 					}
@@ -1815,6 +1826,19 @@ GrafanaMetricData.prototype = {
 		}
 		return relative_time;
 	},
+	getImpactStatusOfCI: function (sys_id) {
+		var returnImpact = 0;
+		if (sys_id) {
+			var impactGr = new GlideRecord("em_impact_status");
+			impactGr.addQuery("element_id", sys_id);
+			impactGr.addEncodedQuery("vt_end>javascript:gs.endOfCurrentMinute()");
+			impactGr.query();
+			if (impactGr.next()) {
+				returnImpact = impactGr.getValue("severity");
+			}
+		}
+		return returnImpact;
+	},
 
     type: 'GrafanaMetricData'
 };]]></script>
@@ -1822,13 +1846,13 @@ GrafanaMetricData.prototype = {
         <sys_created_by>optimiz</sys_created_by>
         <sys_created_on>2021-09-01 16:44:18</sys_created_on>
         <sys_id>b4c75b021b1ab8507ef18736604bcb23</sys_id>
-        <sys_mod_count>196</sys_mod_count>
+        <sys_mod_count>197</sys_mod_count>
         <sys_name>GrafanaMetricData</sys_name>
         <sys_package display_value="Grafana Plugin" source="3247134e1bd6b8507ef18736604bcbf4">3247134e1bd6b8507ef18736604bcbf4</sys_package>
         <sys_policy/>
         <sys_scope display_value="Grafana Plugin">3247134e1bd6b8507ef18736604bcbf4</sys_scope>
         <sys_update_name>sys_script_include_b4c75b021b1ab8507ef18736604bcb23</sys_update_name>
         <sys_updated_by>optimiz</sys_updated_by>
-        <sys_updated_on>2022-01-20 19:31:56</sys_updated_on>
+        <sys_updated_on>2022-01-21 16:47:59</sys_updated_on>
     </sys_script_include>
 </record_update>
